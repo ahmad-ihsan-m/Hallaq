@@ -1,0 +1,26 @@
+{
+  "name": "hallaq",
+  "version": "0.1.0",
+  "description": "Barbershop booking platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/supabase-js": "^2.105.3",
+    "next": "^14.2.35",
+    "openai": "^6.36.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^3.4.19"
+  }
+}
