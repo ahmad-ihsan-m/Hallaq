@@ -66,9 +66,10 @@ export default async function BarbershopDetailPage({ params }) {
           <div className="mt-8">
             <Link
               href={`/booking/${shop.id}`}
-              className="inline-block bg-slate-900 hover:bg-slate-800 text-white font-semibold px-8 py-3.5 rounded-full transition-all hover:shadow-lg hover:-translate-y-0.5"
+              className="inline-flex items-center bg-slate-900 hover:bg-brand-600 text-white font-medium px-8 py-3.5 rounded-xl transition-all duration-300 hover:shadow-brand-500/30 hover:shadow-lg hover:-translate-y-0.5 gap-2 group"
             >
-              Booking Sekarang
+              <span>Booking Now</span>
+              <span className="group-hover:translate-x-1 transition-transform">→</span>
             </Link>
           </div>
         </div>
@@ -147,6 +148,24 @@ export default async function BarbershopDetailPage({ params }) {
           </div>
         )}
       </section>
+
+      {/* Bottom CTA */}
+      <div className="mt-16 mb-8 text-center bg-white p-10 sm:p-12 rounded-[2.5rem] shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-100 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-brand-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
+        
+        <div className="relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-4 tracking-tight">Siap Untuk Tampil Beda?</h2>
+          <p className="text-slate-500 mb-8 max-w-lg mx-auto text-lg">Booking sekarang untuk mendapatkan jadwal yang kamu inginkan dan rasakan pengalaman cukur terbaik.</p>
+          <Link
+            href={`/booking/${shop.id}`}
+            className="inline-flex items-center justify-center bg-slate-900 hover:bg-brand-600 text-white font-medium px-10 py-4 rounded-xl transition-all duration-300 shadow-sm hover:shadow-brand-500/30 hover:-translate-y-1 gap-2 group/btn text-lg"
+          >
+            <span>Booking Now</span>
+            <span className="group-hover/btn:translate-x-1 transition-transform">→</span>
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

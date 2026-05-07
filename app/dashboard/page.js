@@ -12,16 +12,43 @@ import {
   deleteService,
 } from '@/services/barbershopService'
 import { getShopBookings, updateBookingStatus } from '@/services/bookingService'
+import { useToast } from '@/components/Toast'
 
-const STATUS_LABELS = {
-  pending: { label: 'Menunggu', color: 'bg-yellow-100 text-yellow-800' },
-  confirmed: { label: 'Dikonfirmasi', color: 'bg-blue-100 text-blue-800' },
-  done: { label: 'Selesai', color: 'bg-green-100 text-green-800' },
-  cancelled: { label: 'Dibatalkan', color: 'bg-red-100 text-red-800' },
+const STATUS_CONFIG = {
+  pending:   { label: 'Menunggu',    dot: 'bg-yellow-400', badge: 'bg-yellow-50 text-yellow-700 border-yellow-200'  },
+  confirmed: { label: 'Dikonfirmasi',dot: 'bg-blue-400',   badge: 'bg-blue-50 text-blue-700 border-blue-200'        },
+  done:      { label: 'Selesai',     dot: 'bg-green-400',  badge: 'bg-green-50 text-green-700 border-green-200'     },
+  cancelled: { label: 'Dibatalkan',  dot: 'bg-red-400',    badge: 'bg-red-50 text-red-700 border-red-200'           },
+}
+
+const inputCls = 'w-full border border-slate-200 bg-slate-50 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 focus:bg-white transition-all placeholder:text-slate-400'
+const labelCls = 'block text-sm font-semibold text-slate-700 mb-1.5'
+
+function SectionHeader({ title, subtitle }) {
+  return (
+    <div className="mb-5">
+      <h3 className="text-base font-bold text-slate-900">{title}</h3>
+      {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+    </div>
+  )
+}
+
+function StatCard({ icon, value, label, desc, colorClass, urgent }) {
+  return (
+    <div className={`bg-white rounded-2xl border shadow-card p-5 hover:shadow-card-hover transition-all group ${urgent ? 'border-yellow-200' : 'border-slate-100'}`}>
+      <div className={`w-11 h-11 ${colorClass} rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-105 transition-transform duration-200`}>
+        {icon}
+      </div>
+      <div className="text-3xl font-black text-slate-900 mb-1 tabular-nums">{value}</div>
+      <div className="text-sm font-semibold text-slate-700">{label}</div>
+      <div className="text-xs text-slate-400 mt-0.5">{desc}</div>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
   const router = useRouter()
+  const toast = useToast()
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [shops, setShops] = useState([])
@@ -29,34 +56,20 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
 
-  // Forms
   const [shopForm, setShopForm] = useState({ name: '', location: '', description: '', phone: '' })
   const [barberForm, setBarberForm] = useState({ name: '', specialization: '', shopId: '' })
   const [serviceForm, setServiceForm] = useState({ name: '', price: '', duration: '', shopId: '' })
-  const [formError, setFormError] = useState('')
-  const [formSuccess, setFormSuccess] = useState('')
 
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
 
-      const { data: prof, error: profError } = await supabase
+      const { data: prof } = await supabase
         .from('users').select('*').eq('id', user.id).single()
 
-      console.log('Dashboard init — USER:', user)
-      console.log('Dashboard init — PROFILE:', prof, profError)
-
-      if (!prof) {
-        console.warn('No profile found for user. Check if the trigger ran on signup.')
-        router.push('/')
-        return
-      }
-      if (prof.role !== 'owner') {
-        console.warn('User role is not owner:', prof.role)
-        router.push('/')
-        return
-      }
+      if (!prof) { router.push('/'); return }
+      if (prof.role !== 'owner') { router.push('/'); return }
 
       setUser(user)
       setProfile(prof)
@@ -67,18 +80,10 @@ export default function DashboardPage() {
   }, [])
 
   async function loadData(ownerId) {
-    console.log('loadData: USER:', ownerId)
-
     let shopData = await getBarbershopByOwner(ownerId)
-    console.log('loadData: OWNER SHOPS:', shopData)
-
-    // Fallback for development: show all shops if owner filter returns nothing
     if (!shopData || shopData.length === 0) {
-      console.log('loadData: no owner shops found, falling back to getAllBarbershops')
       shopData = await getAllBarbershops()
-      console.log('loadData: ALL SHOPS fallback:', shopData)
     }
-
     setShops(shopData)
 
     if (shopData.length > 0) {
@@ -91,33 +96,30 @@ export default function DashboardPage() {
 
   async function handleCreateShop(e) {
     e.preventDefault()
-    setFormError(''); setFormSuccess('')
     try {
       await createBarbershop({ ...shopForm, ownerId: user.id })
       setShopForm({ name: '', location: '', description: '', phone: '' })
-      setFormSuccess('Barbershop berhasil dibuat!')
+      toast?.('Barbershop berhasil dibuat! 🎉', 'success')
       await loadData(user.id)
     } catch (err) {
-      setFormError(err.message)
+      toast?.(err.message, 'error')
     }
   }
 
   async function handleCreateBarber(e) {
     e.preventDefault()
-    setFormError(''); setFormSuccess('')
     try {
       await createBarber({ name: barberForm.name, specialization: barberForm.specialization, barbershopId: barberForm.shopId })
       setBarberForm({ name: '', specialization: '', shopId: '' })
-      setFormSuccess('Barber berhasil ditambahkan!')
+      toast?.('Barber berhasil ditambahkan!', 'success')
       await loadData(user.id)
     } catch (err) {
-      setFormError(err.message)
+      toast?.(err.message, 'error')
     }
   }
 
   async function handleCreateService(e) {
     e.preventDefault()
-    setFormError(''); setFormSuccess('')
     try {
       await createService({
         name: serviceForm.name,
@@ -126,143 +128,246 @@ export default function DashboardPage() {
         barbershopId: serviceForm.shopId,
       })
       setServiceForm({ name: '', price: '', duration: '', shopId: '' })
-      setFormSuccess('Layanan berhasil ditambahkan!')
+      toast?.('Layanan berhasil ditambahkan!', 'success')
       await loadData(user.id)
     } catch (err) {
-      setFormError(err.message)
+      toast?.(err.message, 'error')
     }
   }
 
   async function handleStatusChange(bookingId, status) {
     try {
       await updateBookingStatus(bookingId, status)
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status } : b))
-      )
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)))
+      const labels = { confirmed: 'dikonfirmasi', done: 'selesai', cancelled: 'ditolak' }
+      toast?.(`Booking ${labels[status] || 'diperbarui'}.`, 'success')
     } catch (err) {
-      alert('Gagal update status: ' + err.message)
+      toast?.('Gagal update status: ' + err.message, 'error')
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gray-400 text-lg">Memuat dashboard...</div>
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="animate-pulse space-y-6">
+          <div className="h-36 bg-slate-200 rounded-3xl" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="h-32 bg-slate-100 rounded-2xl" />)}
+          </div>
+          <div className="h-14 bg-slate-100 rounded-2xl" />
+          <div className="h-64 bg-slate-100 rounded-2xl" />
+        </div>
       </div>
     )
   }
 
   const pendingCount = bookings.filter((b) => b.status === 'pending').length
+  const totalBarbers = shops.reduce((s, sh) => s + (sh.barbers?.length || 0), 0)
+
+  const TABS = [
+    { id: 'overview',    label: 'Ringkasan', icon: '📊' },
+    { id: 'barbershops', label: 'Kelola',    icon: '⚙️' },
+    { id: 'bookings',    label: 'Booking',   icon: '📅', badge: pendingCount },
+  ]
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Owner</h1>
-        <p className="text-gray-500 mt-1">Selamat datang, <strong>{profile?.name}</strong>!</p>
-      </div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 animate-fade-in">
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Barbershop', value: shops.length, icon: '🏪' },
-          { label: 'Total Barber', value: shops.reduce((s, sh) => s + (sh.barbers?.length || 0), 0), icon: '✂️' },
-          { label: 'Total Booking', value: bookings.length, icon: '📅' },
-          { label: 'Menunggu', value: pendingCount, icon: '⏳' },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
-            <div className="text-3xl mb-1">{stat.icon}</div>
-            <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-            <div className="text-sm text-gray-500">{stat.label}</div>
+      {/* ── Welcome Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-7 sm:p-10 mb-8 text-white">
+        <div className="absolute top-0 right-0 w-72 h-72 bg-brand-500 rounded-full opacity-[0.07] blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-purple-500 rounded-full opacity-[0.07] blur-3xl -ml-16 -mb-16 pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse" />
+              <span className="text-slate-400 text-sm font-medium">Dashboard Owner</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+              Halo, {profile?.name?.split(' ')[0]}! 👋
+            </h1>
+            <p className="text-slate-400 mt-2 text-sm">
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
           </div>
-        ))}
+          {pendingCount > 0 && (
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className="flex items-center gap-4 bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/25 rounded-2xl px-5 py-4 transition-colors text-left flex-shrink-0"
+            >
+              <span className="text-3xl">⏳</span>
+              <div>
+                <p className="text-yellow-400 font-black text-2xl leading-none">{pendingCount}</p>
+                <p className="text-yellow-400/70 text-xs mt-0.5">Booking menunggu konfirmasi</p>
+              </div>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {['overview', 'barbershops', 'bookings'].map((tab) => (
+      {/* ── Stats Grid ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard icon="🏪" value={shops.length} label="Barbershop" desc="terdaftar" colorClass="bg-blue-50" />
+        <StatCard icon="✂️" value={totalBarbers} label="Total Barber" desc="aktif" colorClass="bg-orange-50" />
+        <StatCard icon="📅" value={bookings.length} label="Total Booking" desc="semua waktu" colorClass="bg-green-50" />
+        <StatCard
+          icon="⏳"
+          value={pendingCount}
+          label="Menunggu"
+          desc="perlu konfirmasi"
+          colorClass={pendingCount > 0 ? 'bg-yellow-50' : 'bg-slate-50'}
+          urgent={pendingCount > 0}
+        />
+      </div>
+
+      {/* ── Tab Bar ── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-1.5 mb-6 flex gap-1.5">
+        {TABS.map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              activeTab === tab.id
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            {tab === 'overview' ? 'Ringkasan' : tab === 'barbershops' ? 'Kelola' : 'Booking'}
+            <span className="hidden sm:block">{tab.icon}</span>
+            <span>{tab.label}</span>
+            {tab.badge > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Feedback messages */}
-      {formSuccess && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
-          ✅ {formSuccess}
-        </div>
-      )}
-      {formError && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-          ❌ {formError}
-        </div>
-      )}
-
-      {/* ===== TAB: OVERVIEW ===== */}
+      {/* ═══ TAB: RINGKASAN ═══ */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
+        <div className="space-y-4 animate-slide-up">
           {shops.length === 0 ? (
-            <p className="text-gray-400">Kamu belum memiliki barbershop. Tambahkan di tab &quot;Kelola&quot;.</p>
-          ) : shops.map((shop) => (
-            <div key={shop.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">{shop.name}</h3>
-              <p className="text-sm text-gray-500 mb-4">📍 {shop.location}</p>
-              <div className="flex gap-4 text-sm text-gray-600">
-                <span>✂️ {shop.barbers?.length || 0} barber</span>
-                <span>💈 {shop.services?.length || 0} layanan</span>
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-card p-12 text-center">
+              <div className="text-5xl mb-4">🏪</div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Belum ada barbershop</h3>
+              <p className="text-slate-500 text-sm mb-6">Tambahkan barbershop pertamamu di tab Kelola.</p>
+              <button
+                onClick={() => setActiveTab('barbershops')}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-md"
+              >
+                Tambah Sekarang →
+              </button>
+            </div>
+          ) : (
+            shops.map((shop) => (
+                <div key={shop.id} className="bg-white rounded-2xl border border-slate-100 shadow-card p-6 hover:shadow-card-hover transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-slate-900 truncate">{shop.name}</h3>
+                      <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1">
+                        <span>📍</span> <span className="truncate">{shop.location}</span>
+                      </p>
+                    </div>
+                    <span className="flex-shrink-0 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">Aktif</span>
+                  </div>
+                  <div className="flex flex-wrap gap-3 mt-5">
+                    {[
+                      { icon: '✂️', value: shop.barbers?.length || 0, label: 'Barber' },
+                      { icon: '💈', value: shop.services?.length || 0, label: 'Layanan' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-2 bg-slate-50 rounded-xl px-4 py-2.5">
+                        <span>{item.icon}</span>
+                        <span className="font-bold text-slate-900">{item.value}</span>
+                        <span className="text-slate-500 text-sm">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {shop.description && (
+                    <p className="text-sm text-slate-500 mt-4 leading-relaxed line-clamp-2">{shop.description}</p>
+                  )}
+                </div>
+            ))
+          )}
+
+          {/* Recent bookings preview */}
+          {bookings.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-slate-900">Booking Terbaru</h3>
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className="text-brand-600 text-sm font-semibold hover:text-brand-700 transition-colors"
+                >
+                  Lihat semua →
+                </button>
+              </div>
+              <div className="space-y-2">
+                {bookings.slice(0, 4).map((booking) => {
+                  const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending
+                  return (
+                    <div key={booking.id} className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                          {(booking.user?.name || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{booking.user?.name || '—'}</p>
+                          <p className="text-xs text-slate-400 truncate">{booking.service?.name || '—'} · {booking.barber?.name || '—'}</p>
+                        </div>
+                      </div>
+                      <span className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border ${st.badge}`}>
+                        {st.label}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      {/* ===== TAB: KELOLA ===== */}
+      {/* ═══ TAB: KELOLA ═══ */}
       {activeTab === 'barbershops' && (
-        <div className="space-y-8">
+        <div className="space-y-6 animate-slide-up">
+
           {/* Create Barbershop */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">+ Tambah Barbershop</h3>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+            <SectionHeader title="Tambah Barbershop" subtitle="Daftarkan barbershop baru ke platform" />
             <form onSubmit={handleCreateShop} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { name: 'name', label: 'Nama Barbershop', placeholder: 'Hallaq Classic' },
-                { name: 'location', label: 'Lokasi', placeholder: 'Jl. Sudirman No. 10, Jakarta' },
-                { name: 'phone', label: 'Nomor Telepon', placeholder: '021-5551234' },
+                { name: 'name',     label: 'Nama Barbershop', placeholder: 'Hallaq Classic', required: true },
+                { name: 'location', label: 'Lokasi',          placeholder: 'Jl. Sudirman No. 10, Jakarta', required: true },
+                { name: 'phone',    label: 'Nomor Telepon',   placeholder: '021-5551234', required: false },
               ].map((field) => (
                 <div key={field.name}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+                  <label className={labelCls}>{field.label}</label>
                   <input
                     name={field.name}
                     value={shopForm[field.name]}
                     onChange={(e) => setShopForm((p) => ({ ...p, [e.target.name]: e.target.value }))}
                     placeholder={field.placeholder}
-                    required={field.name !== 'phone'}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    required={field.required}
+                    className={inputCls}
                   />
                 </div>
               ))}
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+                <label className={labelCls}>Deskripsi</label>
                 <textarea
                   name="description"
                   value={shopForm.description}
                   onChange={(e) => setShopForm((p) => ({ ...p, description: e.target.value }))}
                   placeholder="Deskripsi singkat barbershopmu..."
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+                  className={`${inputCls} resize-none`}
                 />
               </div>
               <div className="sm:col-span-2">
-                <button type="submit" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
-                  Tambah Barbershop
+                <button type="submit" className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-md active:scale-[0.98]">
+                  + Tambah Barbershop
                 </button>
               </div>
             </form>
@@ -270,86 +375,98 @@ export default function DashboardPage() {
 
           {/* Add Barber */}
           {shops.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">+ Tambah Barber</h3>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+              <SectionHeader title="Tambah Barber" subtitle="Daftarkan barber ke barbershopmu" />
               <form onSubmit={handleCreateBarber} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Barber</label>
+                  <label className={labelCls}>Nama Barber</label>
                   <input
                     value={barberForm.name}
                     onChange={(e) => setBarberForm((p) => ({ ...p, name: e.target.value }))}
                     placeholder="Ahmad Rizky"
                     required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Spesialisasi</label>
+                  <label className={labelCls}>Spesialisasi</label>
                   <input
                     value={barberForm.specialization}
                     onChange={(e) => setBarberForm((p) => ({ ...p, specialization: e.target.value }))}
                     placeholder="Fade & Undercut"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Barbershop</label>
+                  <label className={labelCls}>Barbershop</label>
                   <select
                     value={barberForm.shopId}
                     onChange={(e) => setBarberForm((p) => ({ ...p, shopId: e.target.value }))}
                     required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className={inputCls}
                   >
                     <option value="">Pilih barbershop</option>
                     {shops.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <button type="submit" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
-                    Tambah Barber
+                  <button type="submit" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-md active:scale-[0.98]">
+                    + Tambah Barber
                   </button>
                 </div>
               </form>
 
-              {/* Barber List */}
-              {shops.map((shop) =>
-                shop.barbers?.length > 0 ? (
-                  <div key={shop.id} className="mt-4">
-                    <p className="text-sm font-semibold text-gray-600 mb-2">{shop.name}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {shop.barbers.map((b) => (
-                        <div key={b.id} className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-1.5 text-sm">
-                          <span>{b.name}</span>
-                          <button
-                            onClick={async () => { await deleteBarber(b.id); await loadData(user.id) }}
-                            className="text-red-400 hover:text-red-600 text-xs"
-                          >✕</button>
+              {shops.some((shop) => shop.barbers?.length > 0) && (
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Barber Terdaftar</p>
+                  {shops.map((shop) =>
+                    shop.barbers?.length > 0 ? (
+                      <div key={shop.id} className="mb-4 last:mb-0">
+                        <p className="text-xs font-bold text-slate-400 mb-2">{shop.name}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {shop.barbers.map((b) => (
+                            <div key={b.id} className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 rounded-xl px-3 py-1.5 text-sm transition-colors group">
+                              <div className="w-5 h-5 rounded-full bg-slate-700 text-white text-[10px] flex items-center justify-center font-bold flex-shrink-0">
+                                {b.name[0].toUpperCase()}
+                              </div>
+                              <span className="font-medium text-slate-700">{b.name}</span>
+                              {b.specialization && <span className="text-slate-400">· {b.specialization}</span>}
+                              <button
+                                onClick={async () => { await deleteBarber(b.id); await loadData(user.id) }}
+                                className="text-slate-300 hover:text-red-500 transition-colors ml-1"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                  <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
+                      </div>
+                    ) : null
+                  )}
+                </div>
               )}
             </div>
           )}
 
           {/* Add Service */}
           {shops.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">+ Tambah Layanan</h3>
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-card p-6">
+              <SectionHeader title="Tambah Layanan" subtitle="Kelola daftar layanan dan harga" />
               <form onSubmit={handleCreateService} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Layanan</label>
+                  <label className={labelCls}>Nama Layanan</label>
                   <input
                     value={serviceForm.name}
                     onChange={(e) => setServiceForm((p) => ({ ...p, name: e.target.value }))}
                     placeholder="Potong Rambut"
                     required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp)</label>
+                  <label className={labelCls}>Harga (Rp)</label>
                   <input
                     type="number"
                     value={serviceForm.price}
@@ -357,11 +474,11 @@ export default function DashboardPage() {
                     placeholder="35000"
                     required
                     min="0"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Durasi (menit)</label>
+                  <label className={labelCls}>Durasi (menit)</label>
                   <input
                     type="number"
                     value={serviceForm.duration}
@@ -369,111 +486,164 @@ export default function DashboardPage() {
                     placeholder="30"
                     required
                     min="1"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Barbershop</label>
+                  <label className={labelCls}>Barbershop</label>
                   <select
                     value={serviceForm.shopId}
                     onChange={(e) => setServiceForm((p) => ({ ...p, shopId: e.target.value }))}
                     required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    className={inputCls}
                   >
                     <option value="">Pilih barbershop</option>
                     {shops.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <button type="submit" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors">
-                    Tambah Layanan
+                  <button type="submit" className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-all hover:shadow-md active:scale-[0.98]">
+                    + Tambah Layanan
                   </button>
                 </div>
               </form>
 
-              {/* Service List */}
-              {shops.map((shop) =>
-                shop.services?.length > 0 ? (
-                  <div key={shop.id} className="mt-4">
-                    <p className="text-sm font-semibold text-gray-600 mb-2">{shop.name}</p>
-                    <div className="space-y-1">
-                      {shop.services.map((svc) => (
-                        <div key={svc.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                          <span>{svc.name} — Rp {Number(svc.price).toLocaleString('id-ID')} ({svc.duration} mnt)</span>
-                          <button
-                            onClick={async () => { await deleteService(svc.id); await loadData(user.id) }}
-                            className="text-red-400 hover:text-red-600 text-xs ml-2"
-                          >✕</button>
+              {shops.some((shop) => shop.services?.length > 0) && (
+                <div className="mt-6 pt-5 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Layanan Terdaftar</p>
+                  {shops.map((shop) =>
+                    shop.services?.length > 0 ? (
+                      <div key={shop.id} className="mb-4 last:mb-0">
+                        <p className="text-xs font-bold text-slate-400 mb-2">{shop.name}</p>
+                        <div className="space-y-1.5">
+                          {shop.services.map((svc) => (
+                            <div key={svc.id} className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 rounded-xl px-4 py-2.5 text-sm transition-colors group">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="font-semibold text-slate-800 truncate">{svc.name}</span>
+                                <span className="text-slate-400 flex-shrink-0">⏱ {svc.duration} mnt</span>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <span className="font-bold text-brand-600">Rp {Number(svc.price).toLocaleString('id-ID')}</span>
+                                <button
+                                  onClick={async () => { await deleteService(svc.id); await loadData(user.id) }}
+                                  className="text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                    <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null
+                      </div>
+                    ) : null
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* ===== TAB: BOOKINGS ===== */}
+      {/* ═══ TAB: BOOKINGS ═══ */}
       {activeTab === 'bookings' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="animate-slide-up">
           {bookings.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">Belum ada booking masuk.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    {['Pelanggan', 'Barber', 'Layanan', 'Waktu', 'Status', 'Aksi'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {bookings.map((booking) => {
-                    const st = STATUS_LABELS[booking.status] || STATUS_LABELS.pending
-                    return (
-                      <tr key={booking.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-medium">{booking.user?.name || '—'}</td>
-                        <td className="px-4 py-3">{booking.barber?.name || '—'}</td>
-                        <td className="px-4 py-3">{booking.service?.name || '—'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {new Date(booking.booking_date).toLocaleString('id-ID', {
-                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>
-                            {st.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {booking.status === 'pending' && (
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                                className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded"
-                              >Konfirmasi</button>
-                              <button
-                                onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded"
-                              >Tolak</button>
-                            </div>
-                          )}
-                          {booking.status === 'confirmed' && (
-                            <button
-                              onClick={() => handleStatusChange(booking.id, 'done')}
-                              className="bg-green-500 hover:bg-green-600 text-white text-xs px-2 py-1 rounded"
-                            >Selesai</button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-card p-16 text-center">
+              <div className="text-5xl mb-4">📅</div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Belum ada booking</h3>
+              <p className="text-slate-500 text-sm">Booking dari pelanggan akan muncul di sini.</p>
             </div>
+          ) : (
+            <>
+              {/* Status filter pills */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+                  const count = bookings.filter((b) => b.status === key).length
+                  return count > 0 ? (
+                    <span key={key} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${cfg.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label} ({count})
+                    </span>
+                  ) : null
+                })}
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-card overflow-hidden">
+                <div className="overflow-x-auto scrollbar-hide">
+                  <table className="w-full text-sm min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70">
+                        {['Pelanggan', 'Barber', 'Layanan', 'Waktu', 'Status', 'Aksi'].map((h) => (
+                          <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {bookings.map((booking) => {
+                        const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending
+                        return (
+                          <tr key={booking.id} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                                  {(booking.user?.name || '?')[0].toUpperCase()}
+                                </div>
+                                <span className="font-semibold text-slate-900">{booking.user?.name || '—'}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-slate-600">{booking.barber?.name || '—'}</td>
+                            <td className="px-5 py-4 text-slate-600">{booking.service?.name || '—'}</td>
+                            <td className="px-5 py-4 whitespace-nowrap text-slate-500">
+                              {new Date(booking.booking_date).toLocaleString('id-ID', {
+                                day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${st.badge}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                                {st.label}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex gap-1.5">
+                                {booking.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                    >
+                                      Konfirmasi
+                                    </button>
+                                    <button
+                                      onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                    >
+                                      Tolak
+                                    </button>
+                                  </>
+                                )}
+                                {booking.status === 'confirmed' && (
+                                  <button
+                                    onClick={() => handleStatusChange(booking.id, 'done')}
+                                    className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                  >
+                                    Selesai
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

@@ -6,7 +6,7 @@ export default function BarberCard({ barber, avgRating, selected, onSelect }) {
       className={`rounded-2xl border-2 p-5 cursor-pointer transition-all duration-300 ${
         selected
           ? 'border-brand-500 bg-brand-50/50 shadow-sm'
-          : 'border-transparent hover:border-brand-200 bg-white shadow-sm hover:shadow-md'
+          : 'border-transparent hover:border-brand-200 bg-white shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-0.5'
       }`}
     >
       <div className="flex items-center gap-3">
