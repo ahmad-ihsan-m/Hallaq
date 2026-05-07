@@ -115,6 +115,7 @@ export async function getUserBookings(userId) {
     `)
     .eq('user_id', userId)
     .order('booking_date', { ascending: false })
+    .order('booking_time', { ascending: false })
 
   if (error) throw error
   return data
@@ -133,7 +134,8 @@ export async function getShopBookings(barbershopId) {
       service:services(name, price, duration)
     `)
     .eq('barber.barbershop_id', barbershopId)
-    .order('booking_date', { ascending: true })
+    .order('booking_date', { ascending: false })
+    .order('booking_time', { ascending: false })
 
   if (error) throw error
   return data
@@ -156,4 +158,16 @@ export async function updateBookingStatus(id, status) {
 
 export async function cancelBooking(id) {
   return updateBookingStatus(id, 'cancelled')
+}
+
+export async function deleteBooking(id) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .delete()
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { useAuthModal } from '@/components/AuthModal'
 
 const NAV_LINKS = [
   { label: 'Barbershop', href: '/#explore' },
@@ -45,6 +46,7 @@ export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const toast = useToast()
+  const showAuthModal = useAuthModal()
 
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -82,9 +84,12 @@ export default function Navbar() {
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    toast?.('Logout berhasil. Sampai jumpa! 👋', 'success')
-    router.push('/')
-    router.refresh()
+    showAuthModal({ 
+      title: 'Sampai Jumpa!', 
+      message: 'Kamu telah berhasil logout dari sistem.', 
+      type: 'success',
+      redirect: '/'
+    })
   }
 
   const initials = profile?.name
@@ -138,11 +143,17 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {user ? (
               <div className="flex items-center gap-2">
+                <Link
+                  href="/history"
+                  className="px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all hidden sm:block"
+                >
+                  Riwayat
+                </Link>
                 <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0">
                     {initials}
                   </div>
-                  <span className="text-sm font-medium text-slate-700 max-w-[96px] truncate">
+                  <span className="text-sm font-medium text-slate-700 max-w-[96px] truncate hidden md:inline-block">
                     {profile?.name || user.email}
                   </span>
                   <button
@@ -215,19 +226,28 @@ export default function Navbar() {
 
               <div className="pt-3 mt-3 border-t border-slate-100">
                 {user ? (
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                      {initials}
+                  <div className="flex flex-col gap-1 px-4 py-3">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{profile?.name || user.email}</p>
+                        <p className="text-xs text-slate-400 capitalize">{profile?.role || 'customer'}</p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{profile?.name || user.email}</p>
-                      <p className="text-xs text-slate-400 capitalize">{profile?.role || 'customer'}</p>
-                    </div>
+                    <Link
+                      href="/history"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-2"
+                    >
+                      <span>📅</span> Riwayat Booking
+                    </Link>
                     <button
                       onClick={() => { setMobileOpen(false); handleSignOut() }}
-                      className="text-sm text-red-500 font-medium hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all"
+                      className="text-sm text-red-500 font-medium hover:text-red-700 px-3 py-2.5 rounded-lg hover:bg-red-50 transition-all text-left flex items-center gap-2"
                     >
-                      Logout
+                      <span>👋</span> Logout
                     </button>
                   </div>
                 ) : (

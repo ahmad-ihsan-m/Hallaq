@@ -11,7 +11,7 @@ import {
   createService,
   deleteService,
 } from '@/services/barbershopService'
-import { getShopBookings, updateBookingStatus } from '@/services/bookingService'
+import { getShopBookings, updateBookingStatus, deleteBooking } from '@/services/bookingService'
 import { useToast } from '@/components/Toast'
 
 const STATUS_CONFIG = {
@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [shopForm, setShopForm] = useState({ name: '', location: '', description: '', phone: '' })
   const [barberForm, setBarberForm] = useState({ name: '', specialization: '', shopId: '' })
   const [serviceForm, setServiceForm] = useState({ name: '', price: '', duration: '', shopId: '' })
+  const [deleteModal, setDeleteModal] = useState({ open: false, bookingId: null })
 
   useEffect(() => {
     async function init() {
@@ -139,10 +140,21 @@ export default function DashboardPage() {
     try {
       await updateBookingStatus(bookingId, status)
       setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status } : b)))
-      const labels = { confirmed: 'dikonfirmasi', done: 'selesai', cancelled: 'ditolak' }
+      const labels = { confirmed: 'dikonfirmasi', done: 'selesai', cancelled: 'dibatalkan' }
       toast?.(`Booking ${labels[status] || 'diperbarui'}.`, 'success')
     } catch (err) {
       toast?.('Gagal update status: ' + err.message, 'error')
+    }
+  }
+
+  async function handleDeleteBooking() {
+    try {
+      await deleteBooking(deleteModal.bookingId)
+      setBookings((prev) => prev.filter((b) => b.id !== deleteModal.bookingId))
+      setDeleteModal({ open: false, bookingId: null })
+      toast?.('Booking berhasil dihapus secara permanen.', 'success')
+    } catch (err) {
+      toast?.('Gagal menghapus booking: ' + err.message, 'error')
     }
   }
 
@@ -609,31 +621,40 @@ export default function DashboardPage() {
                               </span>
                             </td>
                             <td className="px-5 py-4">
-                              <div className="flex gap-1.5">
+                              <div className="flex flex-wrap gap-1.5">
                                 {booking.status === 'pending' && (
                                   <>
                                     <button
                                       onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95 flex items-center gap-1"
                                     >
-                                      Konfirmasi
+                                      <span>✓</span> Konfirmasi
                                     </button>
                                     <button
                                       onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                      className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95 flex items-center gap-1"
                                     >
-                                      Tolak
+                                      <span>✕</span> Batalkan
                                     </button>
                                   </>
                                 )}
                                 {booking.status === 'confirmed' && (
                                   <button
                                     onClick={() => handleStatusChange(booking.id, 'done')}
-                                    className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95"
+                                    className="bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:shadow-sm active:scale-95 flex items-center gap-1"
                                   >
-                                    Selesai
+                                    <span>★</span> Selesai
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => setDeleteModal({ open: true, bookingId: booking.id })}
+                                  className="text-slate-400 hover:bg-slate-100 hover:text-slate-700 border border-transparent text-xs font-semibold px-2 py-1.5 rounded-lg transition-all active:scale-95 flex items-center"
+                                  title="Hapus"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                  </svg>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -646,6 +667,36 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* ── Modal Delete ── */}
+      {deleteModal.open && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 animate-fade-in" onClick={() => setDeleteModal({ open: false, bookingId: null })} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl p-8 w-[90%] max-w-sm z-50 shadow-2xl animate-slide-up">
+            <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-5 text-2xl mx-auto">
+              ⚠️
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Hapus Booking?</h3>
+            <p className="text-slate-500 text-sm text-center mb-8">
+              Data booking ini akan dihapus secara permanen dari sistem. Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModal({ open: false, bookingId: null })}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteBooking}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 shadow-sm hover:shadow-red-500/30 transition-all active:scale-95"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

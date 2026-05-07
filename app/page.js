@@ -3,16 +3,32 @@
 import { useEffect, useState } from 'react'
 import BarbershopCard from '@/components/BarbershopCard'
 import Link from 'next/link'
-import { getAllBarbershops } from '@/services/barbershopService'
+import { getAllBarbershops, getHomepageStats } from '@/services/barbershopService'
 
-/* ─── Static AI showcase data (purely visual) ─── */
-const AI_MOCK = {
-  face: 'Oval',
-  confidence: 98,
-  styles: ['Textured Crop', 'Side Part', 'Quiff Modern'],
-}
+/* ─── Dynamic AI showcase data ─── */
+const AI_MOCKS = [
+  { face: 'Oval', confidence: 98, styles: ['Textured Crop', 'Side Part', 'Quiff Modern'] },
+  { face: 'Square', confidence: 95, styles: ['Buzz Cut', 'Faux Hawk', 'Crew Cut'] },
+  { face: 'Round', confidence: 96, styles: ['Pompadour', 'Fringe', 'Undercut'] },
+]
 
 function AIShowcaseCard() {
+  const [index, setIndex] = useState(0)
+  const [animating, setAnimating] = useState(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnimating(true)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % AI_MOCKS.length)
+        setAnimating(false)
+      }, 300)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const currentMock = AI_MOCKS[index]
+
   return (
     <div className="relative select-none">
       {/* Glow behind the card */}
@@ -35,7 +51,7 @@ function AIShowcaseCard() {
           </div>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className={`p-5 space-y-4 transition-opacity duration-300 ${animating ? 'opacity-0' : 'opacity-100'}`}>
           {/* Face detection result */}
           <div className="flex items-center gap-4 bg-slate-50 rounded-2xl p-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-100 to-orange-50 border border-brand-100 flex items-center justify-center text-2xl flex-shrink-0">
@@ -43,7 +59,7 @@ function AIShowcaseCard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Bentuk Wajah</p>
-              <p className="text-xl font-black text-slate-900">{AI_MOCK.face}</p>
+              <p className="text-xl font-black text-slate-900">{currentMock.face}</p>
               <div className="flex gap-1 mt-1.5">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className={`h-1.5 rounded-full flex-1 ${i <= 4 ? 'bg-brand-500' : 'bg-brand-200'}`} />
@@ -51,7 +67,7 @@ function AIShowcaseCard() {
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <p className="text-2xl font-black text-slate-900">{AI_MOCK.confidence}%</p>
+              <p className="text-2xl font-black text-slate-900">{currentMock.confidence}%</p>
               <p className="text-[11px] text-slate-400">akurasi</p>
             </div>
           </div>
@@ -60,7 +76,7 @@ function AIShowcaseCard() {
           <div>
             <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Rekomendasi Gaya</p>
             <div className="space-y-2">
-              {AI_MOCK.styles.map((style, i) => (
+              {currentMock.styles.map((style, i) => (
                 <div
                   key={style}
                   className={`flex items-center justify-between px-4 py-2.5 rounded-xl ${i === 0 ? 'bg-brand-50 border border-brand-100' : 'bg-slate-50'}`}
@@ -118,15 +134,20 @@ function StatItem({ value, label }) {
 
 export default function HomePage() {
   const [barbershops, setBarbershops] = useState([])
+  const [stats, setStats] = useState({ barbershops: 50, customers: 1200, rating: 4.9, bookings: 320 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchShops() {
-      const data = await getAllBarbershops()
-      setBarbershops(data)
+    async function init() {
+      const [shopsData, statsData] = await Promise.all([
+        getAllBarbershops(),
+        getHomepageStats()
+      ])
+      setBarbershops(shopsData)
+      setStats(statsData)
       setLoading(false)
     }
-    fetchShops()
+    init()
   }, [])
 
   return (
@@ -194,11 +215,24 @@ export default function HomePage() {
 
               {/* Stats */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-8 pt-8 border-t border-slate-100">
-                <StatItem value="1.2K+" label="Pelanggan" />
-                <div className="hidden sm:block w-px h-10 bg-slate-200" />
-                <StatItem value="50+" label="Barbershop" />
-                <div className="hidden sm:block w-px h-10 bg-slate-200" />
-                <StatItem value="4.9★" label="Rating" />
+                {loading ? (
+                  <div className="flex gap-8">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="animate-pulse space-y-2">
+                        <div className="h-8 w-16 bg-slate-100 rounded-lg" />
+                        <div className="h-4 w-20 bg-slate-50 rounded-md" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <StatItem value={stats.customers >= 1000 ? `${(stats.customers/1000).toFixed(1)}K+` : stats.customers} label="Pelanggan" />
+                    <div className="hidden sm:block w-px h-10 bg-slate-200" />
+                    <StatItem value={`${stats.barbershops}+`} label="Barbershop" />
+                    <div className="hidden sm:block w-px h-10 bg-slate-200" />
+                    <StatItem value={`${stats.rating}★`} label="Rating" />
+                  </>
+                )}
               </div>
             </div>
 

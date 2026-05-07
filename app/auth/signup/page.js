@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signUp } from '@/services/authService'
 import { useToast } from '@/components/Toast'
+import { useAuthModal } from '@/components/AuthModal'
 
 export default function SignupPage() {
   const router = useRouter()
   const toast = useToast()
+  const showAuthModal = useAuthModal()
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'customer' })
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -23,42 +25,23 @@ export default function SignupPage() {
     setLoading(true)
     try {
       await signUp(form.name, form.email, form.password, form.role)
-      toast?.('Akun berhasil dibuat! Cek emailmu 📧', 'success')
-      setSuccess(true)
+      showAuthModal({ 
+        title: 'Cek Email Kamu!', 
+        message: `Kami mengirim link konfirmasi ke ${form.email}. Silakan verifikasi sebelum login.`, 
+        type: 'success',
+        redirect: '/auth/login'
+      })
     } catch (err) {
-      toast?.(err.message || 'Gagal mendaftar. Coba lagi.', 'error')
+      showAuthModal({ 
+        title: 'Gagal Mendaftar', 
+        message: err.message || 'Terjadi kesalahan. Coba lagi.', 
+        type: 'error' 
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  if (success) {
-    return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-5 py-10 bg-slate-50">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-card border border-slate-100 p-10 text-center animate-slide-up">
-          <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M6 16L12 22L26 8" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Cek Email Kamu!</h2>
-          <p className="text-slate-500 mb-2 text-sm leading-relaxed">
-            Kami mengirim link konfirmasi ke
-          </p>
-          <p className="font-semibold text-slate-900 mb-6">{form.email}</p>
-          <p className="text-slate-400 text-xs mb-8">
-            Silakan verifikasi emailmu sebelum login. Cek folder spam jika tidak muncul.
-          </p>
-          <Link
-            href="/auth/login"
-            className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 py-3 rounded-xl transition-all hover:shadow-md"
-          >
-            Ke Halaman Login →
-          </Link>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-5 py-10 bg-slate-50">

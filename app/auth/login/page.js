@@ -5,10 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn } from '@/services/authService'
 import { useToast } from '@/components/Toast'
+import { useAuthModal } from '@/components/AuthModal'
 
 export default function LoginPage() {
   const router = useRouter()
   const toast = useToast()
+  const showAuthModal = useAuthModal()
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -22,13 +24,18 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await signIn(form.email, form.password)
-      toast?.('Login berhasil! Selamat datang kembali 🎉', 'success')
-      setTimeout(() => {
-        router.push('/')
-        router.refresh()
-      }, 800)
+      showAuthModal({ 
+        title: 'Login Berhasil!', 
+        message: 'Selamat datang kembali di Hallaq 🎉', 
+        type: 'success',
+        redirect: '/'
+      })
     } catch {
-      toast?.('Email atau password salah. Silakan coba lagi.', 'error')
+      showAuthModal({ 
+        title: 'Login Gagal', 
+        message: 'Email atau password salah. Silakan coba lagi.', 
+        type: 'error' 
+      })
     } finally {
       setLoading(false)
     }
