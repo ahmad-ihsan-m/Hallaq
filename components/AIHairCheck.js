@@ -96,42 +96,41 @@ export default function AIHairCheck() {
       <div className="p-6 space-y-5">
 
         {/* ── Upload zone (NO preview) or Preview (WITH image) ── */}
-        {/* CRITICAL: both branches have IDENTICAL height (h-56) so layout never shifts */}
-        <div className="relative w-full h-56 rounded-2xl overflow-hidden flex-shrink-0">
-          {preview ? (
-            /* ─── Preview state ─── */
-            <>
-              <img
-                src={preview}
-                alt="Foto yang diupload"
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-              {/* Hover overlay to change photo */}
-              <label className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors cursor-pointer group">
-                <span className="bg-black/70 text-white text-sm font-semibold px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
-                  📸 Ganti Foto
-                </span>
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
-              </label>
-              {/* Clear button */}
-              <button
-                type="button"
-                onClick={handleClear}
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg"
-                title="Hapus foto"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-              {/* Uploaded badge */}
-              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                Foto siap dianalisis
-              </div>
-            </>
-          ) : (
-            /* ─── Empty upload zone ─── */
+        {preview ? (
+          /* ─── Preview state: responsive to image height ─── */
+          <div className="relative w-full rounded-2xl overflow-hidden flex-shrink-0">
+            <img
+              src={preview}
+              alt="Foto yang diupload"
+              className="w-full h-auto block"
+            />
+            {/* Hover overlay to change photo */}
+            <label className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors cursor-pointer group">
+              <span className="bg-black/70 text-white text-sm font-semibold px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                📸 Ganti Foto
+              </span>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+            </label>
+            {/* Clear button */}
+            <button
+              type="button"
+              onClick={handleClear}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg"
+              title="Hapus foto"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M9 3L3 9M3 3L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+            {/* Uploaded badge */}
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+              Foto siap dianalisis
+            </div>
+          </div>
+        ) : (
+          /* ─── Empty upload zone: fixed height ─── */
+          <div className="relative w-full h-56 rounded-2xl overflow-hidden flex-shrink-0">
             <label className="absolute inset-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 hover:bg-slate-100 hover:border-brand-300 cursor-pointer transition-all group">
               <div className="absolute inset-0 bg-gradient-to-br from-brand-50/50 to-purple-50/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10 flex flex-col items-center gap-3 text-center px-6">
@@ -147,8 +146,8 @@ export default function AIHairCheck() {
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
             </label>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Analyze button */}
         <button
