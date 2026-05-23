@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserBookings } from '@/services/bookingService'
-
+import { createReview } from '@/services/reviewService'
+import RatingModal from '@/components/RatingModal'
+import { useToast } from '@/components/Toast'
 const STATUS_CONFIG = {
   pending:   { label: 'Menunggu',    dot: 'bg-yellow-400', badge: 'bg-yellow-50 text-yellow-700 border-yellow-200'  },
   confirmed: { label: 'Dikonfirmasi',dot: 'bg-blue-400',   badge: 'bg-blue-50 text-blue-700 border-blue-200'        },
@@ -17,6 +19,12 @@ export default function HistoryPage() {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+
+  const addToast = useToast()
+
+  // Rating State
+  const [reviewBooking, setReviewBooking] = useState(null)
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -41,6 +49,28 @@ export default function HistoryPage() {
   const filteredBookings = filter === 'all' 
     ? bookings 
     : bookings.filter(b => b.status === filter)
+
+  const handleSubmitReview = async ({ rating, comment }) => {
+    if (!reviewBooking || !user) return
+    setSubmittingReview(true)
+    try {
+      await createReview({
+        userId: user.id,
+        barberId: reviewBooking.barber_id,
+        rating,
+        comment
+      })
+      // Close modal
+      setReviewBooking(null)
+      // Optional: You might want to refresh the bookings here if you track which ones are already reviewed.
+      addToast('Terima kasih! Ulasan kamu berhasil dikirim.', 'success')
+    } catch (err) {
+      console.error(err)
+      addToast('Gagal mengirim ulasan, silakan coba lagi.', 'error')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -157,12 +187,29 @@ export default function HistoryPage() {
                   {booking.status === 'pending' && (
                     <p className="text-xs text-slate-400">Silakan datang tepat waktu</p>
                   )}
+                  {booking.status === 'done' && (
+                    <button
+                      onClick={() => setReviewBooking(booking)}
+                      className="mt-2 inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                    >
+                      Beri Penilaian
+                    </button>
+                  )}
                 </div>
               </div>
             )
           })}
         </div>
       )}
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={!!reviewBooking}
+        onClose={() => setReviewBooking(null)}
+        onSubmit={handleSubmitReview}
+        barberName={reviewBooking?.barber?.name || 'Barber'}
+        loading={submittingReview}
+      />
     </div>
   )
 }
